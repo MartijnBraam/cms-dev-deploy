@@ -1,0 +1,12 @@
+webroot=/var/www
+mysqluser=devel
+mysqlpass=secret
+
+adminuser=admin
+adminpass=alsosecret
+adminmail=i.have.email@example.com
+
+vhostfile=/etc/httpd/conf/extra/httpd-vhosts.conf
+apacheuser=http
+permgroup=`whoami`
+

@@ -1,0 +1,64 @@
+#!/bin/bash
+
+if [[ ! -f ~/.dev.cnf ]]; then
+	echo "~/.dev.cnf doesn't exist. please create config file according to README.md"
+	exit
+fi
+
+source ~/.dev.cnf
+
+echo "Configuring webserver"
+
+echo "  - Adding $1.dev to /etc/hosts"
+echo "127.0.0.1    $1.dev" >> /etc/hosts
+
+echo "  - Adding $1.dev to virtualhosts"
+echo "<VirtualHost *:80>" >> $vhostfile
+echo "    DocumentRoot $webroot/$1.dev" >> $vhostfile
+echo "    ServerName $1.dev" >> $vhostfile
+echo "</VirtualHost>" >> $vhostfile
+
+echo "  - Reloading httpd config"
+systemctl reload httpd
+
+echo "Select site type"
+select sitetype in "Drupal" "Wordpress" "Empty"; do
+    case $sitetype in
+        "Drupal")
+            echo "Creating drupal core install"
+            echo "  - Downloading drupal core"
+            drush dl --destination=$webroot --drupal-project-rename=$1.dev > /dev/null
+            echo "  - Setting permissions"
+            cp "$webroot/$1.dev/sites/default/default.settings.php" "$webroot/$1.dev/sites/default/settings.php"
+            chmod 666 "$webroot/$1.dev/sites/default/settings.php"
+            chmod a+w "$webroot/$1.dev/sites/default"
+            echo "  - Doing defaut install"
+            cd "$webroot/$1.dev"
+            drush site-install standard --db-url="mysql://$mysqluser:$mysqlpass@localhost/$1_dev" --site-name="$1" --account-name="$adminuser" --account-pass="$adminpass"
+            echo "  - Setting more permissions"
+            mkdir "$webroot/$1.dev/sites/default/files"
+            chmod 666 "$webroot/$1.dev/sites/default/files"
+            chown -R $apacheuser:$permgroup "$webroot/$1.dev"
+            break
+        ;;
+        "Wordpress")
+            echo "Creating wordpress install"
+            echo "  - Downloading wordpress"
+            mkdir "$webroot/$1.dev"
+            wp core download --path="$webroot/$1.dev"
+            echo "  - Creating database $1_dev"
+            mysql -e "create database $1_dev;"
+            echo "  - Creating wordpress configuration"
+            cd "$webroot/$1.dev"
+            wp core config --dbname="$1_dev" --dbuser="$mysqluser" --dbpass="$mysqlpass"
+            echo "  - Installing wordpress"
+            wp core install --url="http://$1.dev/" --title="$1" --admin_user="$adminuser" --admin_password="$adminpass" --admin_email="$adminmail"
+            break
+        ;;
+        "Empty")
+            echo "Creating empty webroot"
+            mkdir "$webroot/$1.dev"
+            break
+        ;;
+    esac
+done
