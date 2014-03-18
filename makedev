@@ -22,12 +22,16 @@ echo "  - Reloading httpd config"
 systemctl reload httpd
 
 echo "Select site type"
-select sitetype in "Drupal" "Wordpress" "Empty"; do
+select sitetype in "Drupal 7" "Drupal 8" "Wordpress" "Empty"; do
     case $sitetype in
-        "Drupal")
+        "Drupal 7" | "Drupal 8")
             echo "Creating drupal core install"
             echo "  - Downloading drupal core"
-            drush dl --destination=$webroot --drupal-project-rename=$1.dev > /dev/null
+            if [[ "$sitetype" == "Drupal 7" ]]; then
+                drush dl drupal-7.x --destination=$webroot --drupal-project-rename=$1.dev > /dev/null
+            else
+                drush dl drupal-8.x --destination=$webroot --drupal-project-rename=$1.dev > /dev/null
+            fi
             echo "  - Setting permissions"
             cp "$webroot/$1.dev/sites/default/default.settings.php" "$webroot/$1.dev/sites/default/settings.php"
             chmod 666 "$webroot/$1.dev/sites/default/settings.php"
